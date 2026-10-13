@@ -16,6 +16,8 @@ The screenshots use made-up data.
 - **One tap to log an egg.** Big minus and plus buttons, or tap the number to type the day's total.
 - **An egg for each day.** The grid layout lays the last few weeks out like a tray of eggs, each one
   carrying its day's count and shaded from pale on a light day to golden on your best.
+- **A small widget when that's all you want.** The compact layout is one strip with today's count
+  and the 7-day average, and it opens the grid of days in a popup.
 - **Fix or fill in past days.** Step back a day at a time, or tap any egg or bar.
 - **How the flock is laying.** Last 7 days, this month, this year and all time, a 7-day average, the
   lay rate for your number of hens, days in a row with eggs, and your best day.
@@ -64,16 +66,17 @@ type: custom:egg-track-card
 | Option | Default | What it does |
 |---|---|---|
 | `entry_id` | your first flock | Which flock to show. Pick it from the list in the card editor. |
-| `view` | `full` | `full` has a bar chart, totals, a note and the export. `grid` has an egg for each day. `compact` is just today's count and the buttons. |
-| `weeks` | `5` | Weeks in the grid, from 2 to 12. |
+| `view` | `full` | `full` has a bar chart, totals, a note and the export. `grid` has an egg for each day. `compact` is a strip with today's count, the 7-day average and a button that opens the grid in a popup. |
+| `weeks` | `5` | Weeks in the grid and in the compact layout's popup, from 2 to 12. |
 | `days` | `14` | Days in the bar chart, from 7 to 60. |
 | `title` | the flock's name | A different heading. |
 | `hide_title` | `false` | Leave the heading out, for when the card sits under a heading of its own. |
 
 <p>
   <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/card.png" alt="The full layout: today's count, averages, a 14-day bar chart, totals and a note" width="300">
-  <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/compact.png" alt="The compact layout: today's count with minus and plus buttons" width="300">
+  <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/popup.png" alt="The compact layout's popup: the grid of days opened over the dashboard" width="300">
 </p>
+<img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/compact.png" alt="The compact layout: a strip with minus and plus buttons around today's count, the 7-day average and a calendar button" width="440">
 
 In the grid, a week runs along each row from Monday, with this week at the bottom. A day logged as
 zero is an empty shell with a 0 in it, and a day nobody logged is a dotted hollow. Tap an egg to see
@@ -83,6 +86,9 @@ Tap the number to type an exact total. On a day nobody has logged, **No eggs tod
 A note on its own doesn't log the day. **Clear this day** forgets a day's count and note. The colours can be changed in a theme:
 `egg-track-accent` for the buttons, and `egg-track-shell-pale` and `egg-track-shell-rich` for the
 eggs on a light day and on your best day.
+
+The compact layout's popup takes its background and border from the card, so a card styled with a
+theme or card-mod gets a matching popup.
 
 If the card doesn't appear after installing, refresh the browser. On a dashboard managed in YAML,
 add `/egg_track/egg-track-card.js` as a JavaScript module resource.

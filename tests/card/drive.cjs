@@ -203,12 +203,28 @@ async function main() {
 
     // ---- layouts -------------------------------------------------------------------------------
     await open("theme=light"); await shot("card-light.png");
-    await open("theme=dark&view=compact&w=300", 380, 400);
-    check("compact: count and buttons, no chart", !(await has(".chart")) && (await text(".n")) === "4");
+    // ---- compact: a strip, with the grid of days in a popup -------------------------------------
+    await open("theme=dark&view=compact&w=440", 520, 760);
+    const strip = await p.evaluate(() => { const r = window.card.shadowRoot; return { h: Math.round(r.querySelector("ha-card").getBoundingClientRect().height), avg: r.querySelector(".avg b")?.textContent, label: r.querySelector(".avg span")?.textContent, chart: !!r.querySelector(".chart, .tray") }; });
+    check("compact: the count, the 7-day average and no chart", (await text(".n")) === "4" && strip.avg === "6.3" && /7-day average/.test(strip.label) && !strip.chart, JSON.stringify(strip));
     await shot("compact.png");
-    await open("theme=dark&view=compact&w=250&h=120", 330, 300);
-    const fit = await p.evaluate(() => { const c = window.card.shadowRoot.querySelector(".et"); return [c.scrollHeight, c.clientHeight, c.scrollWidth, c.clientWidth]; });
-    check("compact fits a two-row dashboard cell (120 px)", fit[0] <= fit[1] + 1 && fit[2] <= fit[3] + 1 && fit[1] <= 120, fit.join(" "));
+    await click('[data-act="calendar"]', 700);
+    const pop = await p.evaluate(() => { const d = window.card.shadowRoot.querySelector("dialog.cal"); const g = d?.querySelector("egg-track-card"); return { open: !!d?.open, cells: g?.shadowRoot.querySelectorAll(".cell").length, today: g?.shadowRoot.querySelector(".cell.now")?.textContent.trim(), title: d?.querySelector(".cal-head .title")?.textContent.trim(), nested: !!g?.shadowRoot.querySelector(".title") }; });
+    check("compact: the calendar button opens the grid of days in a popup", pop.open && pop.cells === 35 && pop.today === "4" && pop.title === "Backyard hens" && !pop.nested, JSON.stringify(pop));
+    if (process.env.SHOTS !== "0") await p.screenshot({ path: path.join(IMAGES, "popup.png") });
+    await p.evaluate(() => window.card.shadowRoot.querySelector("dialog.cal egg-track-card").shadowRoot.querySelector('[data-act="plus"]').click());
+    await sleep(700);
+    check("compact: an egg logged in the popup shows on the strip behind it", (await text(".n")) === "5" && (await p.evaluate(() => window.card.shadowRoot.querySelector("dialog.cal egg-track-card").shadowRoot.querySelector(".n").textContent)) === "5", await text(".n"));
+    await p.keyboard.press("Escape"); await sleep(500);
+    check("compact: Escape closes the popup and puts focus back on its button", !(await has("dialog.cal")) && (await p.evaluate(() => window.card.shadowRoot.activeElement?.dataset.act)) === "calendar", `${await has("dialog.cal")} / ${await p.evaluate(() => window.card.shadowRoot.activeElement?.dataset.act)}`);
+    await click('[data-act="calendar"]', 500);
+    await p.evaluate(() => window.card.shadowRoot.querySelector("dialog.cal [data-close]").click()); await sleep(400);
+    check("compact: the popup's close button closes it", !(await has("dialog.cal")));
+    await open("theme=dark&view=compact&w=250", 330, 500);
+    check("compact: wraps on a narrow card without overflowing", await p.evaluate(() => { const c = window.card.shadowRoot.querySelector(".et"); return c.scrollWidth <= c.clientWidth + 1; }));
+    await open("theme=dark&view=compact&w=380&hide_title=1", 460, 400);
+    const bare = await p.evaluate(() => { const r = window.card.shadowRoot; const kids = [...r.querySelector(".strip").children].map((k) => Math.round(k.getBoundingClientRect().top + k.getBoundingClientRect().height / 2)); return { h: Math.round(r.querySelector("ha-card").getBoundingClientRect().height), rows: new Set(kids.map((y) => Math.round(y / 12))).size, title: !!r.querySelector(".title") }; });
+    check("compact without its title is one line, under 90 px, on a 380 px card", !bare.title && bare.rows === 1 && bare.h <= 90, JSON.stringify(bare));
     await open("theme=dark&days=30");
     check("a 30-day chart", (await p.evaluate(() => window.card.shadowRoot.querySelectorAll(".bar").length)) === 30);
     await open("theme=dark&w=300", 360, 900);

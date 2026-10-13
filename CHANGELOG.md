@@ -1,3 +1,8 @@
+## 0.2.0
+
+- **The compact layout is a single strip**: today's count with its buttons, the 7-day average, and
+  a calendar button that opens the grid of days in a popup. The popup takes its look from the card.
+
 ## 0.1.2
 
 - card-mod styling now applies to the card. card-mod adds its styling inside the card as the

@@ -25,6 +25,7 @@
   const ICONS = {
     "mdi:egg": "M12,2C8,2 4,8 4,14A8,8 0 0,0 12,22A8,8 0 0,0 20,14C20,8 16,2 12,2Z",
     "mdi:egg-outline": "M12,22A8,8 0 0,1 4,14C4,8 8,2 12,2C16,2 20,8 20,14A8,8 0 0,1 12,22M12,4C9.5,4 6,9 6,14A6,6 0 0,0 12,20A6,6 0 0,0 18,14C18,9 14.5,4 12,4Z",
+    "mdi:calendar-month": "M9,10V12H7V10H9M13,10V12H11V10H13M17,10V12H15V10H17M19,3A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5C3.89,21 3,20.1 3,19V5A2,2 0 0,1 5,3H6V1H8V3H16V1H18V3H19M19,19V8H5V19H19M9,14V16H7V14H9M13,14V16H11V14H13M17,14V16H15V14H17Z",
     "mdi:alert-circle-outline": "M11,15H13V17H11V15M11,7H13V13H11V7M12,2C6.47,2 2,6.5 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20Z",
   };
   customElements.define("ha-icon", class extends HTMLElement {
@@ -35,7 +36,8 @@
     }
   });
   customElements.define("ha-card", class extends HTMLElement {
-    connectedCallback() { this.style.cssText += ";display:block;background:var(--card-background-color);border-radius:12px;border:1px solid var(--divider-color);color:var(--primary-text-color)"; }
+    // The same theme variables Home Assistant's own ha-card reads.
+    connectedCallback() { this.style.cssText += ";display:block;background:var(--ha-card-background,var(--card-background-color));border-radius:var(--ha-card-border-radius,12px);border:var(--ha-card-border-width,1px) solid var(--ha-card-border-color,var(--divider-color));box-shadow:var(--ha-card-box-shadow,none);color:var(--primary-text-color)"; }
   });
   window.subs = [];
   window.offline = false;   // set true to make every call fail the way a dropped connection does

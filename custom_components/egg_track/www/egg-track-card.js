@@ -2,7 +2,7 @@
  * Buildless: plain JS custom element, served by the egg_track integration.
  * Colours come from the Home Assistant theme; set --egg-track-accent to change the yolk colour.
  */
-const ET_VERSION = "0.1.2";
+const ET_VERSION = "0.2.0";
 
 const ET_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const ET_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -87,14 +87,13 @@ class EggTrackCard extends HTMLElement {
   }
 
   getCardSize() { return { compact: 2, grid: 6 }[this._config.view] || 7; }
-  getGridOptions() {
-    return this._config.view === "compact" ? { columns: 6, rows: 2, min_columns: 4, min_rows: 2 } : { columns: 12, rows: "auto", min_columns: 6 };
-  }
+  getGridOptions() { return { columns: 12, rows: "auto", min_columns: 6 }; }
 
   set hass(hass) {
     const first = !this._hass;
     const wasDown = this._connected === false;
     this._hass = hass;
+    if (this._calendar) this._calendar.hass = hass;
     this._connected = hass.connected !== false;
     if (first) { this._load(); return; }
     if (wasDown && this._connected) {   // back online: catch up on whatever happened meanwhile
@@ -124,6 +123,7 @@ class EggTrackCard extends HTMLElement {
     this._pressing = false;
     this._flushNote();
     this._unsubscribe();
+    this._dialog?.close();
   }
 
   _ws(msg) { return this._hass.callWS(msg); }
@@ -270,6 +270,7 @@ class EggTrackCard extends HTMLElement {
     else if (act === "next") this._select(etShift(this._data.day.date, 1));
     else if (act === "today") this._select(this._data.today);
     else if (act === "export") this._export();
+    else if (act === "calendar") this._openCalendar();
     else if (act === "edit") {
       this._editing = true;
       this._exactDirty = false;
@@ -284,6 +285,43 @@ class EggTrackCard extends HTMLElement {
     this._selected = day === this._data.today ? null : day;
     this._editing = false;
     this._load();
+  }
+
+  _openCalendar() {
+    // The grid of days in a popup, for the compact layout: a second card inside a native dialog.
+    if (this._dialog || !this._data) return;
+    const dialog = document.createElement("dialog");
+    dialog.className = "cal";
+    const name = this._config.title || this._data.flock.name;
+    dialog.setAttribute("aria-label", `Eggs each day, ${name}`);
+    dialog.innerHTML = `<div class="cal-head"><div class="title"><ha-icon icon="mdi:egg"></ha-icon><span>${etEsc(name)}</span></div><button class="x" data-close aria-label="Close">×</button></div>`;
+    const grid = document.createElement("egg-track-card");
+    grid.setConfig({ entry_id: this._entryId, view: "grid", weeks: this._config.weeks, hide_title: true });
+    // The popup takes its look from this card (a theme's, or card-mod's), and the grid inside sits flat on it.
+    const look = getComputedStyle(this._frame);
+    const fill = [look.backgroundImage !== "none" ? look.backgroundImage : "", look.backgroundColor !== "rgba(0, 0, 0, 0)" ? look.backgroundColor : ""].filter(Boolean).join(", ");
+    if (fill) dialog.style.background = fill;
+    for (const side of ["Top", "Right", "Bottom", "Left"]) dialog.style[`border${side}`] = `${look[`border${side}Width`]} ${look[`border${side}Style`]} ${look[`border${side}Color`]}`;
+    dialog.style.borderRadius = look.borderRadius;
+    if (look.boxShadow !== "none") dialog.style.boxShadow = look.boxShadow;
+    grid.style.setProperty("--ha-card-background", "transparent");
+    grid.style.setProperty("--ha-card-border-width", "0");
+    grid.style.setProperty("--ha-card-box-shadow", "none");
+    const accent = look.getPropertyValue("--et-accent").trim();
+    if (accent) grid.style.setProperty("--egg-track-accent", accent);
+    grid.hass = this._hass;
+    dialog.appendChild(grid);
+    dialog.addEventListener("click", (ev) => { if (ev.target === dialog || ev.target.closest?.("[data-close]")) dialog.close(); });
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      this._dialog = this._calendar = null;
+      this._load();
+      this.shadowRoot.querySelector('[data-act="calendar"]')?.focus();
+    });
+    this.shadowRoot.appendChild(dialog);
+    this._dialog = dialog;
+    this._calendar = grid;
+    dialog.showModal();
   }
 
   async _export() {
@@ -359,10 +397,17 @@ class EggTrackCard extends HTMLElement {
     const error = problem ? `<div class="err" role="alert">${etEsc(problem)}</div>` : "";
 
     if (this._config.view === "compact") {
-      const bits = [];
-      if (stats.daily_average != null) bits.push(`${etDec(stats.daily_average)} a day`);
-      bits.push(`${etNum(stats.last_7_days)} in 7 days`);
-      return `<div class="et compact">${name ? `<div class="head">${name}</div>` : ""}${counter}${error || `<div class="sub">${bits.join(", ")}</div>`}</div>`;
+      const average = stats.daily_average != null ? etDec(stats.daily_average) : "–";
+      return `
+      <div class="et compact">
+        ${name ? `<div class="head">${name}</div>` : ""}
+        <div class="strip">
+          ${counter}
+          <div class="avg" title="${etNum(stats.last_7_days)} ${etEggs(stats.last_7_days)} in the last 7 days" aria-label="${average} a day, 7-day average"><b>${average}</b><span>7-day average</span></div>
+          <button class="cal-open" data-act="calendar" aria-label="Open the calendar of eggs each day" title="Eggs each day"><ha-icon icon="mdi:calendar-month"></ha-icon></button>
+        </div>
+        ${error}
+      </div>`;
     }
 
     const state = day.logged ? "" : `<div class="state"><span>Not logged yet.</span> <button class="link" data-act="none">No eggs ${isToday ? "today" : "this day"}</button></div>`;
@@ -468,7 +513,22 @@ class EggTrackCard extends HTMLElement {
       --et-egg: 50% 50% 50% 50% / 60% 60% 40% 40%; }
     ha-card { overflow: hidden; container-type: inline-size; height: 100%; box-sizing: border-box; }
     .et { padding: 16px; color: var(--primary-text-color); display: grid; gap: 14px; font-family: var(--paper-font-body1_-_font-family, inherit); }
-    .et.compact { gap: 2px; padding: 8px 14px; height: 100%; box-sizing: border-box; align-content: center; }
+    .et.compact { gap: 6px; padding: 10px 14px; height: 100%; box-sizing: border-box; align-content: center; }
+    .strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; }
+    .compact .counter { gap: 10px; }
+    .avg { display: grid; justify-items: center; gap: 1px; }
+    .avg b { font-family: var(--et-round); font-size: 1.6rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .avg span { font-size: 0.78rem; color: var(--secondary-text-color); white-space: nowrap; }
+    .cal-open { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 12px; border: 0; color: var(--secondary-text-color);
+      background: color-mix(in srgb, var(--primary-text-color) 8%, transparent); --mdc-icon-size: 22px; }
+    .cal-open:hover { color: var(--primary-text-color); background: color-mix(in srgb, var(--et-accent) 22%, transparent); }
+    dialog.cal { padding: 0; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; box-sizing: border-box;
+      color: var(--primary-text-color); background: var(--card-background-color, #1c1c1c); border: 1px solid var(--divider-color); border-radius: 16px; }
+    dialog.cal::backdrop { background: rgba(0, 0, 0, 0.6); }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 8px 0 16px; }
+    .cal-head .x { width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; background: none; font-size: 1.7rem; line-height: 1; color: var(--secondary-text-color); }
+    .cal-head .x:hover { background: color-mix(in srgb, var(--primary-text-color) 10%, transparent); color: var(--primary-text-color); }
+    dialog.cal egg-track-card { margin-top: -6px; }
     .msg { justify-items: center; text-align: center; color: var(--secondary-text-color); padding: 28px 16px; }
     .msg ha-icon { --mdc-icon-size: 36px; color: var(--et-accent); }
     .msg p { margin: 0; max-width: 34ch; line-height: 1.45; }
@@ -531,9 +591,9 @@ class EggTrackCard extends HTMLElement {
     .compact .n { font-size: 2.2rem; line-height: 1; }
     .compact .exact { font-size: 1.8rem; }
     .compact .unit { font-size: 0.78rem; }
-    .compact .count { min-width: 96px; }
+    .compact .count { min-width: 70px; }
     .sub, .state, .foot { font-size: 0.82rem; color: var(--secondary-text-color); text-align: center; }
-    .compact .sub, .compact .err { font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .compact .err { font-size: 0.78rem; }
     .state { margin-top: -8px; }
     .foot { display: flex; justify-content: space-between; gap: 12px; text-align: left; }
     .link { background: none; border: 0; padding: 0; color: var(--primary-color); font-size: inherit; text-decoration: underline; text-underline-offset: 2px; }
