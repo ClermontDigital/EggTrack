@@ -1,0 +1,22 @@
+{
+  "domain": "egg_track",
+  "name": "Egg Track",
+  "after_dependencies": [
+    "frontend",
+    "lovelace"
+  ],
+  "codeowners": [
+    "@ClermontDigital"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/ClermontDigital/EggTrack",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/ClermontDigital/EggTrack/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

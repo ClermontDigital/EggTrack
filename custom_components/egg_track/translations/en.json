@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a flock",
+        "description": "Egg Track keeps a daily egg count for each flock you add.",
+        "data": {
+          "name": "Flock name",
+          "hens": "Laying hens"
+        },
+        "data_description": {
+          "name": "Shown on the card and used to name the sensors.",
+          "hens": "Used to work out the lay rate. Leave at 0 if you'd rather not track it."
+        }
+      }
+    },
+    "error": {
+      "name_required": "Give the flock a name.",
+      "name_taken": "There's already a flock with that name."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Flock",
+        "data": {
+          "hens": "Laying hens"
+        },
+        "data_description": {
+          "hens": "Used to work out the lay rate. Set to 0 to stop tracking it."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "eggs_today": {
+        "name": "Eggs today"
+      },
+      "eggs_yesterday": {
+        "name": "Eggs yesterday"
+      },
+      "eggs_last_7_days": {
+        "name": "Eggs last 7 days"
+      },
+      "eggs_this_month": {
+        "name": "Eggs this month"
+      },
+      "eggs_total": {
+        "name": "Eggs total"
+      },
+      "daily_average": {
+        "name": "Daily average"
+      },
+      "lay_rate": {
+        "name": "Lay rate"
+      },
+      "last_logged": {
+        "name": "Last logged"
+      }
+    },
+    "number": {
+      "eggs_today_count": {
+        "name": "Eggs today"
+      }
+    },
+    "button": {
+      "add_egg": {
+        "name": "Add egg"
+      },
+      "remove_egg": {
+        "name": "Remove egg"
+      }
+    }
+  },
+  "services": {
+    "add_eggs": {
+      "name": "Add eggs",
+      "description": "Add eggs to a day's count. A negative count takes eggs away; the count never goes below zero.",
+      "fields": {
+        "entry_id": {
+          "name": "Flock",
+          "description": "Which flock. Not needed when there is only one."
+        },
+        "count": {
+          "name": "Count",
+          "description": "How many eggs to add. 1 if left out."
+        },
+        "date": {
+          "name": "Date",
+          "description": "The day to add them to. Today if left out."
+        }
+      }
+    },
+    "set_eggs": {
+      "name": "Set eggs",
+      "description": "Set a day's count to an exact number.",
+      "fields": {
+        "entry_id": {
+          "name": "Flock",
+          "description": "Which flock. Not needed when there is only one."
+        },
+        "eggs": {
+          "name": "Eggs",
+          "description": "The day's total."
+        },
+        "date": {
+          "name": "Date",
+          "description": "The day to set. Today if left out."
+        },
+        "note": {
+          "name": "Note",
+          "description": "A short note for the day, such as a broody hen or a cracked egg."
+        }
+      }
+    }
+  }
+}

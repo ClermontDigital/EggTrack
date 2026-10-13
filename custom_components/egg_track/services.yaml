@@ -1,0 +1,35 @@
+add_eggs:
+  fields:
+    entry_id:
+      selector:
+        config_entry:
+          integration: egg_track
+    count:
+      default: 1
+      selector:
+        number:
+          min: -50
+          max: 50
+          mode: box
+    date:
+      selector:
+        date:
+set_eggs:
+  fields:
+    entry_id:
+      selector:
+        config_entry:
+          integration: egg_track
+    eggs:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 200
+          mode: box
+    date:
+      selector:
+        date:
+    note:
+      selector:
+        text:
