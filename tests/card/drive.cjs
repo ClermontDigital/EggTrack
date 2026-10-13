@@ -219,7 +219,8 @@ async function main() {
     await open();
     await p.evaluate(() => { window.frame = window.card.shadowRoot.querySelector("ha-card"); window.frame.dataset.styled = "yes"; });
     await click('[data-act="plus"]'); await click('[data-act="prev"]');
-    check("the card's frame survives redraws (so card-mod styling doesn't flicker)", await p.evaluate(() => window.card.shadowRoot.querySelector("ha-card") === window.frame && window.frame.dataset.styled === "yes"));
+    check("the card's frame survives redraws (so styling on it doesn't flicker)", await p.evaluate(() => window.card.shadowRoot.querySelector("ha-card") === window.frame && window.frame.dataset.styled === "yes"));
+    check("what card-mod adds inside the card is left alone", await has("#from-card-mod"));
 
     check("no script errors", errors.length === 0, errors.join(" | "));
   } finally {

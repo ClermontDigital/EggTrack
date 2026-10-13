@@ -2,7 +2,7 @@
  * Buildless: plain JS custom element, served by the egg_track integration.
  * Colours come from the Home Assistant theme; set --egg-track-accent to change the yolk colour.
  */
-const ET_VERSION = "0.1.1";
+const ET_VERSION = "0.1.2";
 
 const ET_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const ET_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -33,6 +33,10 @@ class EggTrackCard extends HTMLElement {
     this._pending = 0;        // taps on their way to Home Assistant
     this._seq = 0;
     const root = this.shadowRoot;
+    // The frame is built once, here, and only its inside is ever redrawn. card-mod and themes put their
+    // styling next to it or on it, so nothing else in the shadow root is touched after this.
+    root.innerHTML = `<style>${EggTrackCard.styles}</style><ha-card></ha-card>`;
+    this._frame = root.querySelector("ha-card");
     root.addEventListener("click", (ev) => this._onClick(ev));
     root.addEventListener("input", (ev) => this._onInput(ev));
     root.addEventListener("change", (ev) => { if (ev.target.classList?.contains("note")) this._saveNote(); });
@@ -311,11 +315,6 @@ class EggTrackCard extends HTMLElement {
     if (active?.dataset?.act) focus = `[data-act="${active.dataset.act}"]`;
     else if (active?.dataset?.date) focus = `[data-date="${active.dataset.date}"]`;
     else if (active?.classList?.contains("note")) { focus = ".note"; caret = active.selectionStart; }
-    // One <ha-card> for the card's whole life, so styling attached to it (themes, card-mod) doesn't flicker.
-    if (!this._frame) {
-      root.innerHTML = `<style>${EggTrackCard.styles}</style><ha-card></ha-card>`;
-      this._frame = root.querySelector("ha-card");
-    }
     this._frame.innerHTML = this._body();
     const el = focus && root.querySelector(focus);
     if (el && !el.disabled) {

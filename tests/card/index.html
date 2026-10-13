@@ -66,6 +66,8 @@
   card.setConfig(config);
   if (q.get("h")) card.style.height = "100%";
   document.getElementById("wrap").appendChild(card);
+  // card-mod puts an element of its own inside the card as the dashboard loads, before the first draw.
+  card.shadowRoot.appendChild(Object.assign(document.createElement("card-mod"), { id: "from-card-mod" }));
   card.hass = window.makeHass();
   window.card = card;
 </script>

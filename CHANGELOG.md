@@ -1,3 +1,8 @@
+## 0.1.2
+
+- card-mod styling now applies to the card. card-mod adds its styling inside the card as the
+  dashboard loads, and the card's first draw was wiping it.
+
 ## 0.1.1
 
 - The card keeps one frame for its whole life and only redraws what's inside it, so styling attached
