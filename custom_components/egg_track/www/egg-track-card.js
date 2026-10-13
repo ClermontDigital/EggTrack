@@ -2,7 +2,7 @@
  * Buildless: plain JS custom element, served by the egg_track integration.
  * Colours come from the Home Assistant theme; set --egg-track-accent to change the yolk colour.
  */
-const ET_VERSION = "0.2.0";
+const ET_VERSION = "0.2.1";
 
 const ET_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const ET_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -299,8 +299,13 @@ class EggTrackCard extends HTMLElement {
     grid.setConfig({ entry_id: this._entryId, view: "grid", weeks: this._config.weeks, hide_title: true });
     // The popup takes its look from this card (a theme's, or card-mod's), and the grid inside sits flat on it.
     const look = getComputedStyle(this._frame);
-    const fill = [look.backgroundImage !== "none" ? look.backgroundImage : "", look.backgroundColor !== "rgba(0, 0, 0, 0)" ? look.backgroundColor : ""].filter(Boolean).join(", ");
-    if (fill) dialog.style.background = fill;
+    // A see-through card would let the dashboard show through the popup, so its fill goes over a solid base.
+    const clear = look.backgroundColor === "rgba(0, 0, 0, 0)";
+    const layers = [look.backgroundImage !== "none" ? look.backgroundImage : "", clear ? "" : `linear-gradient(${look.backgroundColor}, ${look.backgroundColor})`].filter(Boolean);
+    if (layers.length) {
+      dialog.style.backgroundImage = layers.join(", ");
+      dialog.style.backgroundColor = getComputedStyle(this).getPropertyValue("--primary-background-color").trim() || "#111";
+    }
     for (const side of ["Top", "Right", "Bottom", "Left"]) dialog.style[`border${side}`] = `${look[`border${side}Width`]} ${look[`border${side}Style`]} ${look[`border${side}Color`]}`;
     dialog.style.borderRadius = look.borderRadius;
     if (look.boxShadow !== "none") dialog.style.boxShadow = look.boxShadow;

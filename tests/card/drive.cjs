@@ -212,6 +212,7 @@ async function main() {
     const pop = await p.evaluate(() => { const d = window.card.shadowRoot.querySelector("dialog.cal"); const g = d?.querySelector("egg-track-card"); return { open: !!d?.open, cells: g?.shadowRoot.querySelectorAll(".cell").length, today: g?.shadowRoot.querySelector(".cell.now")?.textContent.trim(), title: d?.querySelector(".cal-head .title")?.textContent.trim(), nested: !!g?.shadowRoot.querySelector(".title") }; });
     check("compact: the calendar button opens the grid of days in a popup", pop.open && pop.cells === 35 && pop.today === "4" && pop.title === "Backyard hens" && !pop.nested, JSON.stringify(pop));
     if (process.env.SHOTS !== "0") await p.screenshot({ path: path.join(IMAGES, "popup.png") });
+    check("compact: the popup is solid, whatever the card behind it looks like", await p.evaluate(() => { const c = getComputedStyle(window.card.shadowRoot.querySelector("dialog.cal")).backgroundColor.match(/[\d.]+/g); return c.length === 3 || Number(c[3]) === 1; }));
     await p.evaluate(() => window.card.shadowRoot.querySelector("dialog.cal egg-track-card").shadowRoot.querySelector('[data-act="plus"]').click());
     await sleep(700);
     check("compact: an egg logged in the popup shows on the strip behind it", (await text(".n")) === "5" && (await p.evaluate(() => window.card.shadowRoot.querySelector("dialog.cal egg-track-card").shadowRoot.querySelector(".n").textContent)) === "5", await text(".n"));

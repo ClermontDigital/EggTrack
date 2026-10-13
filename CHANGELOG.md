@@ -1,3 +1,8 @@
+## 0.2.1
+
+- The compact layout's popup is solid even when the card it comes from is see-through, so the
+  dashboard no longer shows through it.
+
 ## 0.2.0
 
 - **The compact layout is a single strip**: today's count with its buttons, the 7-day average, and
