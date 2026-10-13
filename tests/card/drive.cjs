@@ -1,4 +1,5 @@
-// Drive the Egg Track card in headless Chrome: check how it behaves, and take the README screenshots.
+// Drive the Egg Track card in headless Chrome: check how it behaves, and take the made-up-data README
+// screenshots (grid, grid-light, card, card-light). widget.png and widget-popup.png are from a real dashboard.
 //
 //   pip install -r requirements_test.txt && npm install --no-save puppeteer-core
 //   node tests/card/drive.cjs            (starts tests/card/server.py itself)
@@ -207,11 +208,9 @@ async function main() {
     await open("theme=dark&view=compact&w=440", 520, 760);
     const strip = await p.evaluate(() => { const r = window.card.shadowRoot; return { h: Math.round(r.querySelector("ha-card").getBoundingClientRect().height), avg: r.querySelector(".avg b")?.textContent, label: r.querySelector(".avg span")?.textContent, chart: !!r.querySelector(".chart, .tray") }; });
     check("compact: the count, the 7-day average and no chart", (await text(".n")) === "4" && strip.avg === "6.3" && /7-day average/.test(strip.label) && !strip.chart, JSON.stringify(strip));
-    await shot("compact.png");
     await click('[data-act="calendar"]', 700);
     const pop = await p.evaluate(() => { const d = window.card.shadowRoot.querySelector("dialog.cal"); const g = d?.querySelector("egg-track-card"); return { open: !!d?.open, cells: g?.shadowRoot.querySelectorAll(".cell").length, today: g?.shadowRoot.querySelector(".cell.now")?.textContent.trim(), title: d?.querySelector(".cal-head .title")?.textContent.trim(), nested: !!g?.shadowRoot.querySelector(".title") }; });
     check("compact: the calendar button opens the grid of days in a popup", pop.open && pop.cells === 35 && pop.today === "4" && pop.title === "Backyard hens" && !pop.nested, JSON.stringify(pop));
-    if (process.env.SHOTS !== "0") await p.screenshot({ path: path.join(IMAGES, "popup.png") });
     check("compact: the popup is solid, whatever the card behind it looks like", await p.evaluate(() => { const c = getComputedStyle(window.card.shadowRoot.querySelector("dialog.cal")).backgroundColor.match(/[\d.]+/g); return c.length === 3 || Number(c[3]) === 1; }));
     await p.evaluate(() => window.card.shadowRoot.querySelector("dialog.cal egg-track-card").shadowRoot.querySelector('[data-act="plus"]').click());
     await sleep(700);

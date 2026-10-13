@@ -4,12 +4,12 @@ Count the eggs your chickens lay each day. Log them from a dashboard card, a but
 the coop or a voice command, and see how the flock is laying over the week, the month and the year.
 Everything is stored in your own Home Assistant.
 
-<p>
-  <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/grid.png" alt="The Egg Track card's grid layout: today's count with a minus button and an egg-shaped plus button, above five weeks of eggs, each carrying that day's count" width="300">
-  <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/card-light.png" alt="The full layout in a light theme: today's count, a 14-day bar chart and totals" width="300">
-</p>
+<img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/widget.png" alt="The compact layout on a dashboard, under an Eggs heading: a strip with a minus button, 5 eggs today, an egg-shaped plus button, a 7-day average of 5 and a calendar button" width="465">
 
-The screenshots use made-up data.
+<img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/widget-popup.png" alt="The popup the calendar button opens: today's count with its buttons above a tray of eggs, a week to a row, with today's egg carrying a 5" width="330">
+
+These two are from a real dashboard on its first day, styled with card-mod. The screenshots further
+down use made-up data.
 
 ## Features
 
@@ -73,10 +73,10 @@ type: custom:egg-track-card
 | `hide_title` | `false` | Leave the heading out, for when the card sits under a heading of its own. |
 
 <p>
+  <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/grid.png" alt="The grid layout after a few weeks: today's count with a minus button and an egg-shaped plus button, above five weeks of eggs, each carrying that day's count" width="300">
   <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/card.png" alt="The full layout: today's count, averages, a 14-day bar chart, totals and a note" width="300">
-  <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/popup.png" alt="The compact layout's popup: the grid of days opened over the dashboard" width="300">
+  <img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/card-light.png" alt="The full layout in a light theme" width="300">
 </p>
-<img src="https://raw.githubusercontent.com/ClermontDigital/EggTrack/main/images/compact.png" alt="The compact layout: a strip with minus and plus buttons around today's count, the 7-day average and a calendar button" width="440">
 
 In the grid, a week runs along each row from Monday, with this week at the bottom. A day logged as
 zero is an empty shell with a 0 in it, and a day nobody logged is a dotted hollow. Tap an egg to see
