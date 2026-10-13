@@ -1,4 +1,8 @@
-"""Per-flock storage: one record per day, kept in Home Assistant's .storage."""
+"""Per-flock storage: one record per day, kept in Home Assistant's .storage.
+
+A day is "logged" once it has an egg count, even a count of zero. A day with only a note is not:
+writing "broody hen" before the eggs are collected mustn't count as a no-egg day.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -43,9 +47,9 @@ class EggStore:
 
     def record(self, day: date) -> dict[str, Any]:
         """What the card shows for a day, logged or not."""
-        stored = self.days.get(day.isoformat())
-        return {"date": day.isoformat(), "eggs": int(stored.get("eggs", 0)) if stored else 0,
-                "note": (stored or {}).get("note", ""), "logged": stored is not None}
+        stored = self.days.get(day.isoformat()) or {}
+        return {"date": day.isoformat(), "eggs": int(stored.get("eggs", 0)), "note": stored.get("note", ""),
+                "logged": "eggs" in stored}
 
     def _stamp(self, record: dict[str, Any], user_id: str | None) -> None:
         record["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -55,6 +59,8 @@ class EggStore:
     async def async_set(self, day: date, eggs: int | None = None, note: str | None = None,
                         user_id: str | None = None) -> dict[str, Any]:
         """Set a day's count and/or note. Whatever isn't given is left as it was."""
+        if eggs is None and note is None:
+            raise InvalidLog("Give a count, a note, or both")
         if eggs is not None and not 0 <= eggs <= MAX_EGGS:
             raise InvalidLog(f"Eggs must be between 0 and {MAX_EGGS}")
         if note is not None:
@@ -62,7 +68,7 @@ class EggStore:
             if len(note) > MAX_NOTE:
                 raise InvalidLog(f"Notes can be up to {MAX_NOTE} characters")
         async with self._lock:
-            record = dict(self.days.get(day.isoformat()) or {"eggs": 0})
+            record = dict(self.days.get(day.isoformat()) or {})
             if eggs is not None:
                 record["eggs"] = int(eggs)
             if note is not None:
@@ -70,16 +76,25 @@ class EggStore:
                     record["note"] = note
                 else:
                     record.pop("note", None)
-            self._stamp(record, user_id)
-            self.days[day.isoformat()] = record
+            if "eggs" in record or "note" in record:
+                self._stamp(record, user_id)
+                self.days[day.isoformat()] = record
+            else:
+                self.days.pop(day.isoformat(), None)   # the note was all there was, and it's gone
             await self._save()
         return self.record(day)
 
     async def async_add(self, day: date, count: int = 1, user_id: str | None = None) -> dict[str, Any]:
-        """Add (or, with a negative count, take away) eggs. The count never goes below zero."""
+        """Add (or, with a negative count, take away) eggs. The count never goes below zero.
+
+        Taking eggs away from a day with no count does nothing: it stays not logged, not a zero.
+        """
+        count = int(count)
         async with self._lock:
-            record = dict(self.days.get(day.isoformat()) or {"eggs": 0})
-            eggs = max(0, int(record.get("eggs", 0)) + int(count))
+            record = dict(self.days.get(day.isoformat()) or {})
+            if count == 0 or (count < 0 and "eggs" not in record):
+                return self.record(day)
+            eggs = max(0, int(record.get("eggs", 0)) + count)
             if eggs > MAX_EGGS:
                 raise InvalidLog(f"Eggs must be between 0 and {MAX_EGGS}")
             record["eggs"] = eggs
@@ -89,7 +104,7 @@ class EggStore:
         return self.record(day)
 
     async def async_clear(self, day: date) -> dict[str, Any]:
-        """Forget a day, so it reads as not logged (different from logging zero eggs)."""
+        """Forget a day's count and note, so it reads as not logged (different from logging zero eggs)."""
         async with self._lock:
             if self.days.pop(day.isoformat(), None) is not None:
                 await self._save()

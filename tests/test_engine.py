@@ -111,3 +111,14 @@ def test_card_and_manifest_versions_match():
     manifest = json.loads((root / "manifest.json").read_text())
     card = re.search(r'const ET_VERSION = "([^"]+)"', (root / "www" / "egg-track-card.js").read_text())
     assert card and card.group(1) == manifest["version"]
+
+
+def test_a_note_on_its_own_does_not_log_the_day():
+    week = log({1: 4, 2: 4, 3: 4, 4: 4, 5: 4, 6: 4, 7: 4})
+    with_note = {**week, TODAY.isoformat(): {"note": "Broody hen"}}
+    before, after = engine.stats(week, TODAY, hens=8), engine.stats(with_note, TODAY, hens=8)
+    assert after == before                       # average 4.0, streak 7, last logged yesterday
+    assert not after.logged_today and after.last_logged == TODAY - timedelta(days=1)
+    assert not engine.is_logged(with_note, TODAY)
+    row = engine.series(with_note, TODAY, 1)[0]
+    assert row == {"date": TODAY.isoformat(), "eggs": 0, "logged": False, "note": "Broody hen"}

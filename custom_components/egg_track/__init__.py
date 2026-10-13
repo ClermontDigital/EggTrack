@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
@@ -55,7 +56,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """A new hen count changes the lay rate straight away; nothing needs reloading."""
+    """A new hen count changes the lay rate straight away, and a renamed flock renames its device."""
+    registry = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        if device.name != entry.title:
+            registry.async_update_device(device.id, name=entry.title)
     async_dispatcher_send(hass, SIGNAL_UPDATED.format(entry.entry_id))
 
 
@@ -67,8 +72,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Deleting the flock deletes its egg log too."""
+    """Deleting the flock deletes its egg log too, and the last flock takes the card's dashboard resource with it."""
     await EggStore(hass, entry.entry_id).async_remove()
+    if not hass.config_entries.async_entries(DOMAIN):
+        await _async_remove_resource(hass)
+        hass.data.get(DOMAIN, {}).pop("_frontend", None)   # so a flock added later registers it again
 
 
 async def _async_setup_frontend(hass: HomeAssistant) -> None:
@@ -95,17 +103,34 @@ async def _async_setup_frontend(hass: HomeAssistant) -> None:
             _LOGGER.warning("Egg Track: couldn't auto-load the card; add %s as a dashboard resource", CARD_URL)
 
 
+async def _async_resources(hass: HomeAssistant):
+    """The storage-mode dashboard resource collection, loaded, or None when there isn't one."""
+    from homeassistant.components.lovelace import LOVELACE_DATA
+
+    resources = getattr(hass.data.get(LOVELACE_DATA), "resources", None)
+    if resources is None or not hasattr(resources, "async_create_item"):
+        return None
+    if hasattr(resources, "loaded") and not resources.loaded:
+        await resources.async_load()
+    return resources
+
+
+async def _async_remove_resource(hass: HomeAssistant) -> None:
+    try:
+        resources = await _async_resources(hass)
+        for item in list(resources.async_items()) if resources else []:
+            if item.get("url", "").split("?")[0] == CARD_URL:
+                await resources.async_delete_item(item["id"])
+    except Exception:  # noqa: BLE001 - a left-over resource is harmless
+        _LOGGER.debug("Egg Track: couldn't remove the card resource", exc_info=True)
+
+
 async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
     """Add or refresh the Lovelace resource so storage-mode dashboards load the card."""
     try:
-        from homeassistant.components.lovelace import LOVELACE_DATA
-
-        lovelace = hass.data.get(LOVELACE_DATA)
-        resources = getattr(lovelace, "resources", None)
-        if resources is None or not hasattr(resources, "async_create_item"):
+        resources = await _async_resources(hass)
+        if resources is None:
             return False
-        if hasattr(resources, "loaded") and not resources.loaded:
-            await resources.async_load()
         base = url.split("?")[0]
         for item in resources.async_items():
             existing = item.get("url", "")

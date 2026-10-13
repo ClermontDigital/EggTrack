@@ -109,3 +109,42 @@ async def test_unload_and_reload_keeps_the_log(hass):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert state(hass, "sensor.chickens_eggs_today") == "3"
+
+
+async def test_remove_button_on_an_unlogged_day_does_nothing(hass):
+    entry = await setup_flock(hass)
+    await hass.services.async_call("button", "press", {"entity_id": "button.chickens_remove_egg"}, blocking=True)
+    await hass.async_block_till_done()
+    assert hass.data[DOMAIN][entry.entry_id]["store"].days == {}
+    assert state(hass, "sensor.chickens_last_logged") == "unknown"
+
+
+async def test_today_follows_home_assistants_time_zone_and_starts_again_at_midnight(hass, freezer):
+    from datetime import datetime, timezone
+
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    await hass.config.async_set_time_zone("Australia/Brisbane")          # UTC+10, no daylight saving
+    freezer.move_to(datetime(2026, 10, 13, 13, 59, 50, tzinfo=timezone.utc))   # 23:59:50 on the 13th there
+    entry = await setup_flock(hass)
+    await hass.services.async_call(DOMAIN, "set_eggs", {"eggs": 3}, blocking=True)
+    await hass.async_block_till_done()
+    assert list(hass.data[DOMAIN][entry.entry_id]["store"].days) == ["2026-10-13"]   # the local day, not UTC's
+    assert state(hass, "sensor.chickens_eggs_today") == "3"
+
+    freezer.move_to(datetime(2026, 10, 13, 14, 0, 10, tzinfo=timezone.utc))    # 00:00:10 on the 14th
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert state(hass, "sensor.chickens_eggs_today") == "0"
+    assert state(hass, "sensor.chickens_eggs_yesterday") == "3"
+    assert state(hass, "number.chickens_eggs_today") == "0"
+
+
+async def test_renaming_a_flock_renames_its_device(hass):
+    from homeassistant.helpers import device_registry as dr
+
+    entry = await setup_flock(hass, "Chickens")
+    hass.config_entries.async_update_entry(entry, title="Bantams")
+    await hass.async_block_till_done()
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    assert [d.name for d in devices] == ["Bantams"]

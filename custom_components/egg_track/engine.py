@@ -2,10 +2,12 @@
 
 Pure Python, no Home Assistant imports, so it can be tested on its own.
 
-`days` maps an ISO date to that day's record, `{"eggs": 4, ...}`. A day with no record is "not
-logged": it counts as zero eggs in a total, but averages don't run past the first or the last day
-anyone logged, so a tracker started yesterday isn't averaged over a week, and an egg-less morning
-doesn't drag today's average down before the eggs are collected.
+`days` maps an ISO date to that day's record, `{"eggs": 4, ...}`. A day is "logged" once its
+record has an egg count, even zero; a day with no record, or only a note, is not. Unlogged days
+add nothing to a total. Averages never reach back before the first logged day, so a tracker started
+yesterday isn't averaged over a week, and they end yesterday until today is logged, so an egg-less
+morning doesn't drag the average down before the eggs are collected. An unlogged day earlier in
+the window counts as zero.
 """
 from __future__ import annotations
 
@@ -22,7 +24,7 @@ def eggs_on(days: Days, day: date) -> int:
 
 
 def is_logged(days: Days, day: date) -> bool:
-    return day.isoformat() in days
+    return "eggs" in (days.get(day.isoformat()) or {})
 
 
 def total(days: Days, start: date, end: date) -> int:
@@ -34,7 +36,7 @@ def total(days: Days, start: date, end: date) -> int:
 
 
 def _logged_dates(days: Days) -> list[date]:
-    return sorted(date.fromisoformat(d) for d in days)
+    return sorted(date.fromisoformat(d) for d, r in days.items() if "eggs" in r)
 
 
 @dataclass(frozen=True)
@@ -124,9 +126,9 @@ def series(days: Days, today: date, count: int) -> list[dict[str, Any]]:
     out = []
     for back in range(count - 1, -1, -1):
         day = today - timedelta(days=back)
-        record = days.get(day.isoformat())
-        out.append({"date": day.isoformat(), "eggs": int(record.get("eggs", 0)) if record else 0,
-                    "logged": record is not None, "note": (record or {}).get("note", "")})
+        record = days.get(day.isoformat()) or {}
+        out.append({"date": day.isoformat(), "eggs": int(record.get("eggs", 0)),
+                    "logged": "eggs" in record, "note": record.get("note", "")})
     return out
 
 

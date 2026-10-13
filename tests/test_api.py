@@ -116,3 +116,69 @@ async def test_two_flocks_keep_separate_logs_and_removal_deletes_the_log(hass, h
     await hass.async_block_till_done()
     assert f"{DOMAIN}.{ducks.entry_id}" not in hass_storage
     assert [f["name"] for f in (await ws(client, type=f"{DOMAIN}/flocks"))["result"]] == ["Hens"]
+
+
+async def test_notes_and_take_aways_do_not_turn_an_unlogged_day_into_zero(hass, hass_ws_client):
+    entry = await setup_flock(hass)
+    client = await hass_ws_client(hass)
+    store = hass.data[DOMAIN][entry.entry_id]["store"]
+    today = dt_util.now().date().isoformat()
+
+    # Taking an egg away from a day with no count, or adding none, changes nothing.
+    assert (await ws(client, type=f"{DOMAIN}/add", entry_id=entry.entry_id, count=-1))["result"]["logged"] is False
+    assert (await ws(client, type=f"{DOMAIN}/add", entry_id=entry.entry_id, count=0))["result"]["logged"] is False
+    assert store.days == {}
+
+    # A note is kept, but the day still isn't logged.
+    r = await ws(client, type=f"{DOMAIN}/set_day", entry_id=entry.entry_id, note="Broody hen")
+    assert r["result"] == {"date": today, "eggs": 0, "note": "Broody hen", "logged": False}
+    ov = (await ws(client, type=f"{DOMAIN}/overview", entry_id=entry.entry_id))["result"]
+    assert ov["stats"]["logged_today"] is False and ov["stats"]["last_logged"] is None and ov["series"][-1]["logged"] is False
+    assert (await ws(client, type=f"{DOMAIN}/days", entry_id=entry.entry_id))["result"] == {today: {"eggs": None, "note": "Broody hen"}}
+
+    # Removing the note removes the record; a count of zero is a real entry.
+    assert (await ws(client, type=f"{DOMAIN}/set_day", entry_id=entry.entry_id, note=""))["result"]["logged"] is False
+    assert store.days == {}
+    assert (await ws(client, type=f"{DOMAIN}/set_day", entry_id=entry.entry_id, eggs=0))["result"]["logged"] is True
+    assert (await ws(client, type=f"{DOMAIN}/add", entry_id=entry.entry_id, count=-1))["result"] == {"date": today, "eggs": 0, "note": "", "logged": True}
+
+    # Nothing to change is an error, not a silent zero.
+    r = await ws(client, type=f"{DOMAIN}/set_day", entry_id=entry.entry_id)
+    assert not r["success"] and r["error"]["code"] == "invalid"
+
+
+async def test_fifty_adds_at_once_all_count(hass, hass_ws_client):
+    import asyncio
+
+    entry = await setup_flock(hass)
+    store = hass.data[DOMAIN][entry.entry_id]["store"]
+    today = dt_util.now().date()
+    await asyncio.gather(*(store.async_add(today, 1) for _ in range(50)))
+    assert store.record(today)["eggs"] == 50
+
+
+async def test_the_card_resource_is_registered_once_and_removed_with_the_last_flock(hass):
+    from homeassistant.components.lovelace import LOVELACE_DATA
+
+    assert await async_setup_component(hass, "lovelace", {})
+    first = await setup_flock(hass, "Hens")
+    second = await setup_flock(hass, "Ducks")
+    resources = hass.data[LOVELACE_DATA].resources
+
+    def ours():
+        return [i["url"] for i in resources.async_items() if i["url"].startswith("/egg_track/")]
+
+    assert len(ours()) == 1 and ours()[0].startswith("/egg_track/egg-track-card.js?v=")
+    assert await hass.config_entries.async_reload(first.entry_id)
+    await hass.async_block_till_done()
+    assert len(ours()) == 1
+
+    assert await hass.config_entries.async_remove(first.entry_id)
+    await hass.async_block_till_done()
+    assert len(ours()) == 1                      # still one flock using it
+    assert await hass.config_entries.async_remove(second.entry_id)
+    await hass.async_block_till_done()
+    assert ours() == []
+
+    await setup_flock(hass, "Geese")             # and it comes back with the next flock
+    assert len(ours()) == 1

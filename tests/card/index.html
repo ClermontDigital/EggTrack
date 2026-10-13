@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Egg Track card harness</title>
+<style>
+  html[data-theme="dark"] { --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --card-background-color: #1c1c1c; --secondary-background-color: #2a2a2a;
+    --divider-color: rgba(225,225,225,.14); --primary-color: #03a9f4; --page: #111; --error-color: #ef5350; }
+  html[data-theme="light"] { --primary-text-color: #212121; --secondary-text-color: #6b6b6b; --card-background-color: #fff; --secondary-background-color: #eeeeee;
+    --divider-color: rgba(0,0,0,.14); --primary-color: #0288d1; --page: #f4f4f4; --error-color: #c62828; }
+  body { margin: 0; padding: 24px; background: var(--page); font-family: Roboto, "Helvetica Neue", Arial, sans-serif; }
+  #wrap { width: var(--w, 440px); }
+</style>
+</head>
+<body>
+<div id="wrap"></div>
+<script>
+  // A stand-in for Home Assistant's frontend: theme variables, ha-card, ha-icon and a `hass` object.
+  const q = new URLSearchParams(location.search);
+  document.documentElement.dataset.theme = q.get("theme") || "dark";
+  const wrap = document.getElementById("wrap");
+  wrap.style.setProperty("--w", (q.get("w") || 440) + "px");
+  if (q.get("h")) wrap.style.height = q.get("h") + "px";
+  const ICONS = {
+    "mdi:egg": "M12,2C8,2 4,8 4,14A8,8 0 0,0 12,22A8,8 0 0,0 20,14C20,8 16,2 12,2Z",
+    "mdi:egg-outline": "M12,22A8,8 0 0,1 4,14C4,8 8,2 12,2C16,2 20,8 20,14A8,8 0 0,1 12,22M12,4C9.5,4 6,9 6,14A6,6 0 0,0 12,20A6,6 0 0,0 18,14C18,9 14.5,4 12,4Z",
+    "mdi:alert-circle-outline": "M11,15H13V17H11V15M11,7H13V13H11V7M12,2C6.47,2 2,6.5 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20Z",
+  };
+  customElements.define("ha-icon", class extends HTMLElement {
+    connectedCallback() {
+      const size = "var(--mdc-icon-size, 24px)";
+      this.style.cssText = `display:inline-flex;width:${size};height:${size}`;
+      this.innerHTML = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path fill="currentColor" d="${ICONS[this.getAttribute("icon")] || ""}"/></svg>`;
+    }
+  });
+  customElements.define("ha-card", class extends HTMLElement {
+    connectedCallback() { this.style.cssText += ";display:block;background:var(--card-background-color);border-radius:12px;border:1px solid var(--divider-color);color:var(--primary-text-color)"; }
+  });
+  window.subs = [];
+  window.offline = false;   // set true to make every call fail the way a dropped connection does
+  window.notify = () => window.subs.forEach((f) => f({ changed: true }));
+  window.makeHass = (connected = true) => ({
+    connected,
+    callWS: async (msg) => {
+      if (window.offline) throw 3;   // home-assistant-js-websocket rejects with ERR_CONNECTION_LOST
+      const r = await fetch("/ws", { method: "POST", body: JSON.stringify(msg) });
+      const j = await r.json();
+      if (!r.ok) throw j;
+      if (!["flocks", "overview", "days"].includes(msg.type.split("/")[1])) setTimeout(window.notify, 30);
+      return j;
+    },
+    connection: { subscribeMessage: async (cb) => { window.subs.push(cb); return () => { window.subs = window.subs.filter((f) => f !== cb); }; } },
+  });
+</script>
+<script type="module">
+  await import("/card.js?" + Date.now());
+  const q = new URLSearchParams(location.search);
+  const card = document.createElement("egg-track-card");
+  const config = {};
+  if (q.get("view")) config.view = q.get("view");
+  if (q.get("days")) config.days = Number(q.get("days"));
+  if (q.get("title")) config.title = q.get("title");
+  if (q.get("weeks")) config.weeks = Number(q.get("weeks"));
+  if (q.get("hide_title")) config.hide_title = true;
+  card.setConfig(config);
+  if (q.get("h")) card.style.height = "100%";
+  document.getElementById("wrap").appendChild(card);
+  card.hass = window.makeHass();
+  window.card = card;
+</script>
+</body>
+</html>

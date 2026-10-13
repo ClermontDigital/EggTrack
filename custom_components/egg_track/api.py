@@ -106,13 +106,16 @@ def ws_overview(hass: HomeAssistant, connection: websocket_api.ActiveConnection,
 })
 @callback
 def ws_days(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
-    """The logged days in a range (everything when no range is given), for the calendar and the CSV export."""
+    """Every day with a count or a note in a range (everything when no range is given), for the CSV export.
+
+    `eggs` is null on a day that only has a note.
+    """
     if not (found := _resolve(hass, connection, msg)):
         return
     _, store = found
     start, end = msg.get("start", ""), msg.get("end", "9999-12-31")
     connection.send_result(msg["id"], {
-        d: {"eggs": int(r.get("eggs", 0)), "note": r.get("note", "")}
+        d: {"eggs": int(r["eggs"]) if "eggs" in r else None, "note": r.get("note", "")}
         for d, r in sorted(store.days.items()) if start <= d <= end})
 
 
