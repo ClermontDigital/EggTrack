@@ -216,6 +216,11 @@ async function main() {
     await open("theme=dark&title=" + encodeURIComponent('<img src=x onerror="window.pwned=1">'));
     check("a title with markup is shown as text", !(await p.evaluate(() => window.pwned)) && /<img/.test(await text(".title span")));
 
+    await open();
+    await p.evaluate(() => { window.frame = window.card.shadowRoot.querySelector("ha-card"); window.frame.dataset.styled = "yes"; });
+    await click('[data-act="plus"]'); await click('[data-act="prev"]');
+    check("the card's frame survives redraws (so card-mod styling doesn't flicker)", await p.evaluate(() => window.card.shadowRoot.querySelector("ha-card") === window.frame && window.frame.dataset.styled === "yes"));
+
     check("no script errors", errors.length === 0, errors.join(" | "));
   } finally {
     if (browser) await browser.close();

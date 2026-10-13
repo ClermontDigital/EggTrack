@@ -1,3 +1,8 @@
+## 0.1.1
+
+- The card keeps one frame for its whole life and only redraws what's inside it, so styling attached
+  to the card by a theme or card-mod no longer flickers when a count changes.
+
 ## 0.1.0
 
 First release.

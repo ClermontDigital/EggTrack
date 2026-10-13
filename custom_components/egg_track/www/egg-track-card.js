@@ -2,7 +2,7 @@
  * Buildless: plain JS custom element, served by the egg_track integration.
  * Colours come from the Home Assistant theme; set --egg-track-accent to change the yolk colour.
  */
-const ET_VERSION = "0.1.0";
+const ET_VERSION = "0.1.1";
 
 const ET_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const ET_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -311,7 +311,12 @@ class EggTrackCard extends HTMLElement {
     if (active?.dataset?.act) focus = `[data-act="${active.dataset.act}"]`;
     else if (active?.dataset?.date) focus = `[data-date="${active.dataset.date}"]`;
     else if (active?.classList?.contains("note")) { focus = ".note"; caret = active.selectionStart; }
-    root.innerHTML = `<style>${EggTrackCard.styles}</style><ha-card>${this._body()}</ha-card>`;
+    // One <ha-card> for the card's whole life, so styling attached to it (themes, card-mod) doesn't flicker.
+    if (!this._frame) {
+      root.innerHTML = `<style>${EggTrackCard.styles}</style><ha-card></ha-card>`;
+      this._frame = root.querySelector("ha-card");
+    }
+    this._frame.innerHTML = this._body();
     const el = focus && root.querySelector(focus);
     if (el && !el.disabled) {
       el.focus({ preventScroll: true });
