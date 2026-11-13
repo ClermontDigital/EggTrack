@@ -2,7 +2,7 @@
  * Buildless: plain JS custom element, served by the egg_track integration.
  * Colours come from the Home Assistant theme; set --egg-track-accent to change the yolk colour.
  */
-const ET_VERSION = "0.2.1";
+const ET_VERSION = "0.2.2";
 
 const ET_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const ET_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

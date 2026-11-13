@@ -1,3 +1,8 @@
+## 0.2.2
+
+- **The dashboards' resource list is read once.** Adding the card to it now marks the list loaded, as
+  Home Assistant does itself, so the first dashboard to ask for it doesn't read it from storage again.
+
 ## 0.2.1
 
 - The compact layout's popup is solid even when the card it comes from is see-through, so the

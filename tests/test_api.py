@@ -182,3 +182,23 @@ async def test_the_card_resource_is_registered_once_and_removed_with_the_last_fl
 
     await setup_flock(hass, "Geese")             # and it comes back with the next flock
     assert len(ours()) == 1
+
+
+async def test_the_resource_list_is_loaded_once(hass, hass_ws_client):
+    """Registering the card marks the resource list loaded, so the dashboards' own request doesn't load it again."""
+    from homeassistant.components.lovelace import LOVELACE_DATA
+
+    assert await async_setup_component(hass, "lovelace", {})
+    resources = hass.data[LOVELACE_DATA].resources
+    loads, load = [], resources.async_load
+
+    async def counted():
+        loads.append(1)
+        await load()
+
+    resources.async_load = counted
+    await setup_flock(hass)
+    client = await hass_ws_client(hass)
+    r = await ws(client, type="lovelace/resources")
+    assert [i["url"] for i in r["result"] if i["url"].startswith("/egg_track/")] != []
+    assert len(loads) == 1
