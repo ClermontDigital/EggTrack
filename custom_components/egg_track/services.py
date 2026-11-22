@@ -1,4 +1,4 @@
-"""egg_track.add_eggs / set_eggs, for automations and scripts."""
+"""egg_track.add_eggs / set_eggs / pause / resume, for automations and scripts."""
 from __future__ import annotations
 
 from datetime import date
@@ -13,7 +13,7 @@ from homeassistant.util import dt as dt_util
 from .api import changed, flocks, store_of
 from .const import (
     ATTR_COUNT, ATTR_DATE, ATTR_EGGS, ATTR_ENTRY_ID, ATTR_NOTE, DOMAIN, MAX_EGGS, MAX_NOTE, SERVICE_ADD_EGGS,
-    SERVICE_SET_EGGS,
+    SERVICE_PAUSE, SERVICE_RESUME, SERVICE_SET_EGGS,
 )
 from .storage import InvalidLog, check_day
 
@@ -28,6 +28,22 @@ SET_SCHEMA = vol.Schema({
     vol.Optional(ATTR_DATE): cv.date,
     vol.Optional(ATTR_NOTE): vol.All(cv.string, vol.Length(max=MAX_NOTE)),
 })
+
+
+PAUSE_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_ENTRY_ID): cv.string,
+    vol.Optional(ATTR_DATE): cv.date,
+})
+
+
+def _flocks_for(hass: HomeAssistant, call: ServiceCall) -> list[str]:
+    """The flock named, or every flock: a pause is usually for the whole place."""
+    loaded = [e.entry_id for e in flocks(hass)]
+    if entry_id := call.data.get(ATTR_ENTRY_ID):
+        if entry_id not in loaded:
+            raise ServiceValidationError("That flock isn't set up in Egg Track")
+        return [entry_id]
+    return loaded
 
 
 def _flock(hass: HomeAssistant, call: ServiceCall) -> str:
@@ -75,5 +91,19 @@ def async_register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(str(err)) from err
         changed(hass, entry_id)
 
+    async def pause(call: ServiceCall) -> None:
+        day = _day(call, dt_util.now().date())
+        for entry_id in _flocks_for(hass, call):
+            await store_of(hass, entry_id).async_pause(day)
+            changed(hass, entry_id)
+
+    async def resume(call: ServiceCall) -> None:
+        day = _day(call, dt_util.now().date())
+        for entry_id in _flocks_for(hass, call):
+            await store_of(hass, entry_id).async_resume(day)
+            changed(hass, entry_id)
+
     hass.services.async_register(DOMAIN, SERVICE_ADD_EGGS, add_eggs, schema=ADD_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SET_EGGS, set_eggs, schema=SET_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_PAUSE, pause, schema=PAUSE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_RESUME, resume, schema=PAUSE_SCHEMA)

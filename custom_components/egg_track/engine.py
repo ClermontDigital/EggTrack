@@ -8,6 +8,10 @@ add nothing to a total. Averages never reach back before the first logged day, s
 yesterday isn't averaged over a week, and they end yesterday until today is logged, so an egg-less
 morning doesn't drag the average down before the eggs are collected. An unlogged day earlier in
 the window counts as zero.
+
+Paused days (from the pause and resume actions, say while you're away and nobody collects) are left
+out of the averages, the lay rate and the streak altogether: the 7-day average is the last 7 days that
+weren't paused. Their eggs still count in the totals.
 """
 from __future__ import annotations
 
@@ -58,6 +62,7 @@ class Stats:
     last_logged: date | None
     days_logged: int
     logged_today: bool
+    paused: bool = False             # today is inside a pause
 
     def as_dict(self) -> dict[str, Any]:
         out = asdict(self)
@@ -66,16 +71,32 @@ class Stats:
         return out
 
 
-def _average(days: Days, anchor: date, first: date, span: int) -> float | None:
-    """Eggs a day over the `span` days ending on `anchor`, not reaching back before `first`."""
-    start = max(first, anchor - timedelta(days=span - 1))
-    length = (anchor - start).days + 1
-    if length <= 0:
+def paused_days(periods: list[dict[str, Any]], today: date) -> frozenset[date]:
+    """Every day inside a pause, from its start to its end (both included); one still going runs to today."""
+    out: set[date] = set()
+    for period in periods:
+        start = date.fromisoformat(period["start"])
+        end = date.fromisoformat(period["end"]) if period.get("end") else today
+        while start <= end:
+            out.add(start)
+            start += timedelta(days=1)
+    return frozenset(out)
+
+
+def _average(days: Days, anchor: date, first: date, span: int, paused: frozenset[date] = frozenset()) -> float | None:
+    """Eggs a day over the last `span` days that weren't paused, ending on `anchor`, not reaching back before `first`."""
+    picked: list[date] = []
+    day = anchor
+    while day >= first and len(picked) < span:
+        if day not in paused:
+            picked.append(day)
+        day -= timedelta(days=1)
+    if not picked:
         return None
-    return round(total(days, start, anchor) / length, 2)
+    return round(sum(eggs_on(days, d) for d in picked) / len(picked), 2)
 
 
-def stats(days: Days, today: date, hens: int = 0) -> Stats:
+def stats(days: Days, today: date, hens: int = 0, paused: frozenset[date] = frozenset()) -> Stats:
     logged = [d for d in _logged_dates(days) if d <= today]
     first = logged[0] if logged else None
     last = logged[-1] if logged else None
@@ -85,13 +106,15 @@ def stats(days: Days, today: date, hens: int = 0) -> Stats:
 
     average = average_30 = None
     if first is not None and first <= anchor:
-        average = _average(days, anchor, first, 7)
-        average_30 = _average(days, anchor, first, 30)
+        average = _average(days, anchor, first, 7, paused)
+        average_30 = _average(days, anchor, first, 30, paused)
 
+    # A pause neither adds to the streak nor breaks it.
     streak = 0
     day = anchor
-    while eggs_on(days, day) > 0:
-        streak += 1
+    while first is not None and day >= first and (day in paused or eggs_on(days, day) > 0):
+        if day not in paused:
+            streak += 1
         day -= timedelta(days=1)
 
     best_day, best_eggs = None, 0
@@ -118,6 +141,7 @@ def stats(days: Days, today: date, hens: int = 0) -> Stats:
         last_logged=last,
         days_logged=len(logged),
         logged_today=logged_today,
+        paused=today in paused,
     )
 
 

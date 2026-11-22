@@ -151,6 +151,16 @@ data:
 
 Both take an optional `entry_id` to choose the flock. It's only needed when you have more than one.
 
+`egg_track.pause` and `egg_track.resume` pause the averages while nobody's collecting, say while
+you're away. Paused days are left out of the 7- and 30-day averages, the lay rate and the days in a
+row, so a week away doesn't drag them down; any eggs logged on them still count in the totals. Both
+take an optional `date` (today if left out; the day you resume is still paused) and an optional
+`entry_id` (every flock if left out).
+
+```yaml
+action: egg_track.pause
+```
+
 ## Automation ideas
 
 An NFC tag on the coop door that logs an egg each time it's scanned:
@@ -213,6 +223,8 @@ actions:
 - The **lay rate** is the 7-day average divided by your number of hens.
 - **Days in a row** counts back from the same day as the average and stops at the first day without
   eggs.
+- **Paused days** (see `egg_track.pause`) are skipped: the 7-day average is the last seven days that
+  weren't paused, and a pause neither adds to nor breaks the days in a row.
 - Weeks run Monday to Sunday.
 
 ## Your data

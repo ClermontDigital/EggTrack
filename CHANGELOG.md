@@ -1,3 +1,10 @@
+## 0.3.0
+
+- **Pause and resume.** `egg_track.pause` and `egg_track.resume` leave days out of the averages, the
+  lay rate and the days in a row, for when you're away and nobody collects. A week away no longer
+  drags the 7-day average down. Eggs logged on paused days still count in the totals. Every flock is
+  paused unless you name one, and a pause carries over a restart.
+
 ## 0.2.2
 
 - **The dashboards' resource list is read once.** Adding the card to it now marks the list loaded, as

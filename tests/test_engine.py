@@ -122,3 +122,34 @@ def test_a_note_on_its_own_does_not_log_the_day():
     assert not engine.is_logged(with_note, TODAY)
     row = engine.series(with_note, TODAY, 1)[0]
     assert row == {"date": TODAY.isoformat(), "eggs": 0, "logged": False, "note": "Broody hen"}
+
+
+def test_paused_days_run_from_start_to_end_and_an_open_pause_to_today():
+    periods = [{"start": "2026-10-01", "end": "2026-10-03"}, {"start": "2026-10-12", "end": None}]
+    assert engine.paused_days(periods, TODAY) == frozenset(
+        {date(2026, 10, 1), date(2026, 10, 2), date(2026, 10, 3), date(2026, 10, 12), date(2026, 10, 13)})
+    assert engine.paused_days([], TODAY) == frozenset()
+
+
+def test_paused_days_are_left_out_of_the_averages():
+    """A week away with nothing collected: the average is the 7 days before it, not dragged down to zero."""
+    days = log({0: 4, **{back: 4 for back in range(8, 20)}})        # 1-7 days ago: nothing logged
+    paused = frozenset(TODAY - timedelta(days=back) for back in range(1, 8))
+    away = engine.stats(days, TODAY, hens=8, paused=paused)
+    assert away.daily_average == 4.0 and away.lay_rate == 50.0
+    assert engine.stats(days, TODAY, hens=8).daily_average == round(4 / 7, 2)   # without the pause
+    assert not away.paused and engine.stats(days, TODAY, paused=frozenset({TODAY})).paused
+
+
+def test_a_pause_neither_adds_to_nor_breaks_the_streak():
+    days = log({0: 3, 4: 2, 5: 1})                                  # 1-3 days ago away, nothing logged
+    paused = frozenset(TODAY - timedelta(days=back) for back in (1, 2, 3))
+    assert engine.stats(days, TODAY, paused=paused).streak == 3
+    assert engine.stats(days, TODAY).streak == 1
+
+
+def test_eggs_on_paused_days_still_count_in_the_totals():
+    days = log({0: 2, 1: 10, 2: 2})                                 # 10 collected the day you got back
+    s = engine.stats(days, TODAY, paused=frozenset({TODAY - timedelta(days=1)}))
+    assert s.last_7_days == 14 and s.all_time == 14
+    assert s.daily_average == 2.0                                   # today and 2 days ago; yesterday skipped

@@ -148,3 +148,40 @@ async def test_renaming_a_flock_renames_its_device(hass):
     await hass.async_block_till_done()
     devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
     assert [d.name for d in devices] == ["Bantams"]
+
+
+async def test_pause_and_resume(hass):
+    entry = await setup_flock(hass, "Chickens", 4)
+    other = await setup_flock(hass, "Ducks", 2)
+    today = dt_util.now().date()
+    store = hass.data[DOMAIN][entry.entry_id]["store"]
+    for back in range(8, 15):
+        await store.async_set(today - timedelta(days=back), eggs=4)
+
+    # away for a week: nothing logged, the days paused
+    await hass.services.async_call(DOMAIN, "pause", {"date": (today - timedelta(days=7)).isoformat()}, blocking=True)
+    await hass.async_block_till_done()
+    assert store.pausing and hass.data[DOMAIN][other.entry_id]["store"].pausing   # every flock by default
+    assert state(hass, "sensor.chickens_daily_average") == "4.0"
+    await hass.services.async_call(DOMAIN, "pause", {}, blocking=True)            # already paused: no second pause
+    assert len(store.paused) == 1
+
+    await hass.services.async_call(DOMAIN, "resume", {"entry_id": entry.entry_id}, blocking=True)
+    await hass.async_block_till_done()
+    assert store.paused == [{"start": (today - timedelta(days=7)).isoformat(), "end": today.isoformat()}]
+    assert not store.pausing and hass.data[DOMAIN][other.entry_id]["store"].pausing
+    assert state(hass, "sensor.chickens_daily_average") == "4.0"                  # the week away still left out
+
+    await hass.services.async_call(DOMAIN, "resume", {}, blocking=True)           # resuming twice changes nothing
+    assert len(store.paused) == 1
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "pause", {"entry_id": "not-a-flock"}, blocking=True)
+
+
+async def test_a_pause_is_kept_over_a_restart(hass):
+    entry = await setup_flock(hass, "Chickens", 4)
+    await hass.services.async_call(DOMAIN, "pause", {}, blocking=True)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.data[DOMAIN][entry.entry_id]["store"].pausing

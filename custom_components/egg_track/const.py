@@ -18,6 +18,8 @@ SIGNAL_UPDATED = f"{DOMAIN}_updated_{{}}"  # format with entry_id
 
 SERVICE_ADD_EGGS = "add_eggs"
 SERVICE_SET_EGGS = "set_eggs"
+SERVICE_PAUSE = "pause"
+SERVICE_RESUME = "resume"
 ATTR_ENTRY_ID = "entry_id"
 ATTR_COUNT = "count"
 ATTR_EGGS = "eggs"

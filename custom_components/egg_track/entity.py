@@ -41,7 +41,7 @@ class FlockEntity(Entity):
         return dt_util.now().date()
 
     def stats(self) -> engine.Stats:
-        return engine.stats(self.store.days, self.today, hens_of(self._entry))
+        return engine.stats(self.store.days, self.today, hens_of(self._entry), self.store.paused_days(self.today))
 
     @callback
     def notify_changed(self) -> None:

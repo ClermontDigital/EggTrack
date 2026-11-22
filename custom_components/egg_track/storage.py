@@ -12,6 +12,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
+from . import engine
 from .const import DOMAIN, MAX_EGGS, MAX_NOTE
 
 STORAGE_VERSION = 1
@@ -34,13 +35,37 @@ class EggStore:
         self._store = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}")
         self._lock = asyncio.Lock()
         self.days: dict[str, dict[str, Any]] = {}
+        self.paused: list[dict[str, str | None]] = []   # [{"start": "2026-11-22", "end": "2026-11-29" or None}]
 
     async def async_load(self) -> None:
         data = await self._store.async_load() or {}
         self.days = data.get("days") or {}
+        self.paused = data.get("paused") or []
 
     async def _save(self) -> None:
-        await self._store.async_save({"days": self.days})
+        await self._store.async_save({"days": self.days, "paused": self.paused})
+
+    @property
+    def pausing(self) -> bool:
+        return any(p.get("end") is None for p in self.paused)
+
+    def paused_days(self, today: date) -> frozenset[date]:
+        return engine.paused_days(self.paused, today)
+
+    async def async_pause(self, day: date) -> None:
+        """Start a pause on `day`. Pausing while already paused changes nothing."""
+        async with self._lock:
+            if not self.pausing:
+                self.paused.append({"start": day.isoformat(), "end": None})
+                await self._save()
+
+    async def async_resume(self, day: date) -> None:
+        """End the pause on `day` (that day is still paused). Resuming when not paused changes nothing."""
+        async with self._lock:
+            for period in self.paused:
+                if period.get("end") is None:
+                    period["end"] = max(day.isoformat(), period["start"])
+                    await self._save()
 
     async def async_remove(self) -> None:
         await self._store.async_remove()

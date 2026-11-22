@@ -113,6 +113,34 @@
           "description": "A short note for the day, such as a broody hen or a cracked egg."
         }
       }
+    },
+    "pause": {
+      "name": "Pause",
+      "description": "Pause the averages, for example while you're away and nobody collects the eggs. Paused days are left out of the averages, the lay rate and the streak; their eggs still count in the totals.",
+      "fields": {
+        "entry_id": {
+          "name": "Flock",
+          "description": "Which flock. Every flock if left out."
+        },
+        "date": {
+          "name": "Date",
+          "description": "The first paused day. Today if left out."
+        }
+      }
+    },
+    "resume": {
+      "name": "Resume",
+      "description": "End the pause. The day you resume is still left out of the averages.",
+      "fields": {
+        "entry_id": {
+          "name": "Flock",
+          "description": "Which flock. Every flock if left out."
+        },
+        "date": {
+          "name": "Date",
+          "description": "The last paused day. Today if left out."
+        }
+      }
     }
   }
 }
